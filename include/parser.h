@@ -1,9 +1,7 @@
 #include <librdkafka/rdkafka.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <uthash.h>
 
 // Capture and dissect packet in real time
