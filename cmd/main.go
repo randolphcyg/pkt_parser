@@ -14,6 +14,7 @@ import (
 )
 
 var ifName = flag.String("i", "ens33", "interface name")
+var groupID = flag.String("gid", "packet_parser", "group id")
 var kafkaAddr = flag.String("kafka", "192.168.3.93:9092", "kafka address")
 
 func main() {
@@ -24,13 +25,12 @@ func main() {
 	defer cancel()
 
 	// 设置 Kafka 地址并初始化 Kafka 生产者
-	addr := kafkaAddr
-	if err := pkt_parser.InitKafkaProducer(*addr); err != nil {
+	if err := pkt_parser.InitKafkaProducer(*kafkaAddr); err != nil {
 		slog.Error("Failed to initialize Kafka producer: %v", err)
 		return
 	}
 
-	err := pkt_parser.StartParsePacket(*ifName, *addr)
+	err := pkt_parser.StartParsePacket(*ifName, *kafkaAddr, *groupID)
 	if err != nil {
 		slog.Error("Failed to start packet parser: %v", err)
 	}

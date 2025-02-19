@@ -87,7 +87,7 @@ func GetDataCallback(data *C.char, length C.int, interfaceName *C.char, windowKe
 	produceToKafka(C.GoString(interfaceName)+"_parsed_pkts", windowKeyStr, jsonData)
 }
 
-func StartParsePacket(interfaceName, kafkaAddr string) (err error) {
+func StartParsePacket(interfaceName, kafkaAddr, groupID string) (err error) {
 	// 回调函数
 	C.setDataCallback((C.DataCallback)(C.GetDataCallback))
 
@@ -96,7 +96,7 @@ func StartParsePacket(interfaceName, kafkaAddr string) (err error) {
 		return
 	}
 
-	errMsg := C.parse_packet(C.CString(interfaceName), C.CString(kafkaAddr))
+	errMsg := C.parse_packet(C.CString(interfaceName), C.CString(kafkaAddr), C.CString(groupID))
 	if C.strlen(errMsg) != 0 {
 		err = errors.Errorf("fail to capture packet live:%v", C.GoString(errMsg))
 		return

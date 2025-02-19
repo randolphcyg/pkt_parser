@@ -1,0 +1,7 @@
+version: '3'
+services:
+  pkt_parser:
+    image: pkt_parser:1.0
+    deploy:
+      replicas: 6
+    command: ["-i", "ens77", "-kafka", "192.168.3.93:9092", "-gid", "packet_parser"]

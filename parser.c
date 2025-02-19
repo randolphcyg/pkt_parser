@@ -1,5 +1,6 @@
 #include <lib.h>
 #include <parser.h>
+#include <epan/column.h>
 
 // device_content Contains the information needed for each device
 typedef struct device_content {
@@ -43,7 +44,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
 static DataCallback dataCallback;
 void setDataCallback(DataCallback callback) { dataCallback = callback; }
 
-bool init_kafka_consumer(const char *brokers, const char *topic) {
+bool init_kafka_consumer(const char *brokers, const char *topic, const char *group_id) {
   char errstr[512];
 
   // 创建 Kafka 配置
@@ -57,10 +58,16 @@ bool init_kafka_consumer(const char *brokers, const char *topic) {
   }
 
   // 设置消费者组
-  if (rd_kafka_conf_set(conf, "group.id", "packet_parser", errstr,
+  if (rd_kafka_conf_set(conf, "group.id", group_id, errstr,
                         sizeof(errstr))) {
     fprintf(stderr, "Failed to set group.id: %s\n", errstr);
     return false;
+  }
+
+  // 设置分区分配策略
+  if (rd_kafka_conf_set(conf, "partition.assignment.strategy", "roundrobin", errstr, sizeof(errstr))) {
+      fprintf(stderr, "Failed to set partition.assignment.strategy: %s\n", errstr);
+      return false;
   }
 
   // 创建 Kafka 消费者
@@ -233,8 +240,6 @@ void close_cf_live(capture_file *cf_live) {
 
   cf_live->f_datalen = 0;
   nstime_set_zero(&cf_live->elapsed_time);
-
-  reset_tap_listeners();
 
   epan_free(cf_live->epan);
   cf_live->epan = NULL;
@@ -425,7 +430,7 @@ void kafka_capture_loop(struct device_map *device) {
   }
 }
 
-char *parse_packet(char *device_name, char *kafka_addr) {
+char *parse_packet(char *device_name, char *kafka_addr, char *group_id) {
   char *err_msg = add_device(device_name);
   if (err_msg && strlen(err_msg) != 0) {
     return err_msg;
@@ -438,7 +443,7 @@ char *parse_packet(char *device_name, char *kafka_addr) {
 
   printf("Kafka customer init!\n");
 
-  if (!init_kafka_consumer(kafka_addr, device_name)) {
+  if (!init_kafka_consumer(kafka_addr, device_name, group_id)) {
     return "Failed to initialize Kafka consumer";
   }
 
