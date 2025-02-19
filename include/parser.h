@@ -6,11 +6,8 @@
 #include <sys/socket.h>
 #include <uthash.h>
 
-// judge is json empty
-bool is_empty_json(const char *json_str);
-
 // Capture and dissect packet in real time
-char *parse_packet(char *device_name, char *kafka_addr, char *options);
+char *parse_packet(char *device_name, char *kafka_addr);
 
 // Set up callback function for send packet to wrap layer
 typedef void (*DataCallback)(const char *, int, const char *, const char *);

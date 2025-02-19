@@ -24,17 +24,11 @@
 
 // Init policies、wtap mod、epan mod
 bool init_env();
-// Init capture file
-int init_cf(char *filename, char *options);
-// get_hex_data get hex part of data
-bool get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset, cJSON *cjson_hex,
-                  cJSON *cjson_ascii);
-// Dissect and print all frames
-void print_all_frame();
-// Dissect and get hex data of specific frame
-char *get_specific_frame_hex_data(int num);
-// Get proto tree in json format
-char *proto_tree_in_json(int num, int printCJson);
-// apply prefs
-void tls_prefs_apply(const char *keysList, int desegmentSslRecords,
-                     int desegmentSslApplicationData);
+
+void get_json_proto_tree(output_fields_t *fields,
+                         print_dissections_e print_dissections,
+                         gboolean print_hex, gchar **protocolfilter,
+                         pf_flags protocolfilter_flags, epan_dissect_t *edt,
+                         column_info *cinfo,
+                         proto_node_children_grouper_func node_children_grouper,
+                         json_dumper *dumper);

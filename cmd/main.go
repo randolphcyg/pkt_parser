@@ -30,7 +30,7 @@ func main() {
 		return
 	}
 
-	err := pkt_parser.StartParsePacket(*ifName, *addr, pkt_parser.PrintCJson(false))
+	err := pkt_parser.StartParsePacket(*ifName, *addr)
 	if err != nil {
 		slog.Error("Failed to start packet parser: %v", err)
 	}

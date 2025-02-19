@@ -1,15 +1,7 @@
 package pkt_parser
 
 /*
-#cgo pkg-config: glib-2.0
-#cgo CFLAGS: -I${SRCDIR}/include
-#cgo CFLAGS: -I${SRCDIR}/include/wireshark
-#cgo CFLAGS: -I${SRCDIR}/include/libpcap
-#cgo CFLAGS: -I${SRCDIR}/include/librdkafka
-
-#include "lib.h"
-#include "online.h"
-#include "offline.h"
+#include "parser.h"
 */
 import "C"
 import (
@@ -95,8 +87,8 @@ func GetDataCallback(data *C.char, length C.int, interfaceName *C.char, windowKe
 	produceToKafka(C.GoString(interfaceName)+"_parsed_pkts", windowKeyStr, jsonData)
 }
 
-func StartParsePacket(interfaceName, kafkaAddr string, opts ...Option) (err error) {
-	// Set up callback function
+func StartParsePacket(interfaceName, kafkaAddr string) (err error) {
+	// 回调函数
 	C.setDataCallback((C.DataCallback)(C.GetDataCallback))
 
 	if interfaceName == "" {
@@ -104,14 +96,11 @@ func StartParsePacket(interfaceName, kafkaAddr string, opts ...Option) (err erro
 		return
 	}
 
-	conf := NewConfig(opts...)
-
-	errMsg := C.parse_packet(C.CString(interfaceName), C.CString(kafkaAddr), C.CString(HandleConf(conf)))
+	errMsg := C.parse_packet(C.CString(interfaceName), C.CString(kafkaAddr))
 	if C.strlen(errMsg) != 0 {
-		errMsgStr := C.GoString(errMsg) // 转换为 Go 字符串
-		err = errors.Errorf("fail to capture packet live:%s", errMsgStr)
+		err = errors.Errorf("fail to capture packet live:%v", C.GoString(errMsg))
 		return
 	}
 
-	return
+	return nil
 }

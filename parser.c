@@ -1,14 +1,9 @@
 #include <lib.h>
-#include <offline.h>
-#include <online.h>
+#include <parser.h>
 
 // device_content Contains the information needed for each device
 typedef struct device_content {
   char *device;
-  char *bpf_expr;
-  int num;
-  int promisc;
-  int to_ms;
 
   capture_file *cf_live;
   frame_data prev_dis_frame;
@@ -26,11 +21,11 @@ struct device_map {
 // global map to restore device info
 struct device_map *devices = NULL;
 
-char *add_device(char *device_name, char *options);
+char *add_device(char *device_name);
 struct device_map *find_device(char *device_name);
 
 void cap_file_init(capture_file *cf);
-char *init_cf_live(capture_file *cf_live, char *options);
+char *init_cf_live(capture_file *cf_live);
 void close_cf_live(capture_file *cf_live);
 
 static bool prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr);
@@ -102,7 +97,7 @@ void destroy_kafka_consumer() {
 PART1. Use uthash to implement the logic related to the map of the device
 */
 
-char *add_device(char *device_name, char *options) {
+char *add_device(char *device_name) {
   char *err_msg;
   struct device_map *s;
   capture_file *cf_tmp;
@@ -119,7 +114,7 @@ char *add_device(char *device_name, char *options) {
     s->content.cf_live = cf_tmp;
 
     // init capture_file
-    err_msg = init_cf_live(cf_tmp, options);
+    err_msg = init_cf_live(cf_tmp);
     if (err_msg != NULL) {
       if (strlen(err_msg) != 0) {
         // close cf file
@@ -161,42 +156,7 @@ static epan_t *raw_epan_new(capture_file *cf) {
 }
 
 // init cf_live
-char *init_cf_live(capture_file *cf_live, char *options) {
-  if (!is_empty_json(options)) {
-    char *keysList = NULL;
-    int desegmentSslRecords = 0;
-    int desegmentSslApplicationData = 0;
-
-    cJSON *json = cJSON_Parse(options);
-    if (json == NULL) {
-      fprintf(stderr, "Error: Failed to parse options JSON.\n");
-      return "";
-    }
-
-    // Extract values from JSON
-    const cJSON *keysListJson =
-        cJSON_GetObjectItemCaseSensitive(json, "tls.keys_list");
-    const cJSON *desegmentSslRecordsJson =
-        cJSON_GetObjectItemCaseSensitive(json, "tls.desegment_ssl_records");
-    const cJSON *desegmentSslApplicationDataJson =
-        cJSON_GetObjectItemCaseSensitive(json,
-                                         "tls.desegment_ssl_application_data");
-
-    // Copy keys list if present
-    if (cJSON_IsString(keysListJson) && (keysListJson->valuestring != NULL)) {
-      keysList = keysListJson->valuestring;
-    }
-
-    // Set flags for desegment options
-    desegmentSslRecords = cJSON_IsTrue(desegmentSslRecordsJson);
-    desegmentSslApplicationData = cJSON_IsTrue(desegmentSslApplicationDataJson);
-
-    // Apply TLS preferences
-    tls_prefs_apply(keysList, desegmentSslRecords, desegmentSslApplicationData);
-
-    cJSON_Delete(json);
-  }
-
+char *init_cf_live(capture_file *cf_live) {
   e_prefs *prefs_p;
   /* Create new epan session for dissection. */
   epan_free(cf_live->epan);
@@ -385,8 +345,6 @@ static bool process_packet_from_kafka(struct device_map *device,
   frame_data fd;
   guint32 cum_bytes = 0;
 
-  //  device->content.cf_live->count++;
-
   frame_data_init(&fd, device->content.cf_live->count, &device->content.rec, 0,
                   cum_bytes);
 
@@ -467,8 +425,8 @@ void kafka_capture_loop(struct device_map *device) {
   }
 }
 
-char *parse_packet(char *device_name, char *kafka_addr, char *options) {
-  char *err_msg = add_device(device_name, options);
+char *parse_packet(char *device_name, char *kafka_addr) {
+  char *err_msg = add_device(device_name);
   if (err_msg && strlen(err_msg) != 0) {
     return err_msg;
   }
