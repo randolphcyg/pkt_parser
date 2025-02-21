@@ -11,19 +11,19 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.4.2"
+#define VERSION "4.4.4"
 #define VERSION_MAJOR 4
 #define VERSION_MINOR 4
-#define VERSION_MICRO 2
+#define VERSION_MICRO 4
 
 /* Version number of Logray and associated utilities */
 #define LOG_VERSION "0.9.0"
 
-#define PLUGIN_PATH_ID "4-4"
+#define PLUGIN_PATH_ID "4.4"
 #define VERSION_FLAVOR ""
 
 /* Build wsutil with SIMD optimization */
-/* #undef HAVE_SSE4_2 */
+#define HAVE_SSE4_2 1
 
 /* Define to 1 if we want to enable plugins */
 #define HAVE_PLUGINS 1
@@ -77,7 +77,7 @@
 #define HAVE_GETIFADDRS 1
 
 /* Define if LIBSSH support is enabled */
-#define HAVE_LIBSSH 1
+/* #undef HAVE_LIBSSH */
 
 /* Define if you have the 'dlget' function. */
 /* #undef HAVE_DLGET */
@@ -107,13 +107,13 @@
 /* #undef WITH_GZFILEOP */
 
 /* Define to 1 if you have the `issetugid' function. */
-#define HAVE_ISSETUGID 1
+/* #undef HAVE_ISSETUGID */
 
 /* Define to use kerberos */
-#define HAVE_KERBEROS 1
+/* #undef HAVE_KERBEROS */
 
 /* Define to use nghttp2 */
-#define HAVE_NGHTTP2 1
+/* #undef HAVE_NGHTTP2 */
 
 /* Define to use nghttp3 */
 /* #undef HAVE_NGHTTP3 */
@@ -167,25 +167,25 @@
 /* #undef HAVE_MZCOMPAT_DOS_DATE */
 
 /* Define to use brotli library */
-#define HAVE_BROTLI 1
+/* #undef HAVE_BROTLI */
 
 /* Define to use lz4 library */
-#define HAVE_LZ4 1
+/* #undef HAVE_LZ4 */
 
 /* Check for lz4frame */
-#define HAVE_LZ4FRAME_H 1
+/* #undef HAVE_LZ4FRAME_H */
 
 /* Define to use snappy library */
-#define HAVE_SNAPPY 1
+/* #undef HAVE_SNAPPY */
 
 /* Define to use zstd library */
-#define HAVE_ZSTD 1
+/* #undef HAVE_ZSTD */
 
 /* Define to 1 if you have the <linux/sockios.h> header file. */
-/* #undef HAVE_LINUX_SOCKIOS_H */
+#define HAVE_LINUX_SOCKIOS_H 1
 
 /* Define to 1 if you have the <linux/if_bonding.h> header file. */
-/* #undef HAVE_LINUX_IF_BONDING_H */
+#define HAVE_LINUX_IF_BONDING_H 1
 
 /* Define to use Lua */
 /* #undef HAVE_LUA */
@@ -197,7 +197,7 @@
 /* #undef LUA_INTEGER_SIZE */
 
 /* Define to use MIT kerberos */
-#define HAVE_MIT_KERBEROS 1
+/* #undef HAVE_MIT_KERBEROS */
 
 /* Define to 1 if you have the <netdb.h> header file. */
 #define HAVE_NETDB_H 1
@@ -218,10 +218,10 @@
 /* #undef HAVE_NL80211_VHT_CAPABILITY */
 
 /* Define to 1 if you have macOS frameworks */
-#define HAVE_MACOS_FRAMEWORKS 1
+/* #undef HAVE_MACOS_FRAMEWORKS */
 
 /* Define to 1 if you have the macOS CFPropertyListCreateWithStream function */
-#define HAVE_CFPROPERTYLISTCREATEWITHSTREAM 1
+/* #undef HAVE_CFPROPERTYLISTCREATEWITHSTREAM */
 
 /* Define to 1 if you have the `pcap_create' function. */
 #define HAVE_PCAP_CREATE 1
@@ -281,10 +281,10 @@
 #define HAVE_LIBXML2 1
 
 /* Define to 1 if you have the `setresgid' function. */
-/* #undef HAVE_SETRESGID */
+#define HAVE_SETRESGID 1
 
 /* Define to 1 if you have the `setresuid' function. */
-/* #undef HAVE_SETRESUID */
+#define HAVE_SETRESUID 1
 
 /* Define to 1 if you have the Sparkle or WinSparkle library */
 /* #undef HAVE_SOFTWARE_UPDATE */
@@ -296,16 +296,16 @@
 #define HAVE_MEMMEM 1
 
 /* Define if you have the 'memrchr' function. */
-/* #undef HAVE_MEMRCHR */
+#define HAVE_MEMRCHR 1
 
 /* Define if you have the 'strerrorname_np' function. */
-/* #undef HAVE_STRERRORNAME_NP */
+#define HAVE_STRERRORNAME_NP 1
 
 /* Define if you have the 'vasprintf' function. */
 #define HAVE_VASPRINTF 1
 
 /* Define to 1 if `st_birthtime' is a member of `struct stat'. */
-#define HAVE_STRUCT_STAT_ST_BIRTHTIME 1
+/* #undef HAVE_STRUCT_STAT_ST_BIRTHTIME */
 
 /* Define if st_blksize field exists in struct stat */
 #define HAVE_STRUCT_STAT_ST_BLKSIZE 1

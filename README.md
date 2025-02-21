@@ -22,7 +22,7 @@ docker load -i pkt_parser_1_0.tar.gz
 docker run -d \
     --name pkt_parser \
     pkt_parser:1.0 \
-    -i "ens77" -kafka "192.168.3.93:9092" -gid "packet_parser"
+    -i "ens77" -kafka "10.10.10.187:9092" -gid "packet_parser"
     
 docker-compose up -d --scale pkt_parser=6
 ```
