@@ -12,6 +12,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	produceChannelSize    = 1000
+	messageSendMaxRetries = 3
+	compressionCodec      = "snappy"
+)
+
 var P *kafka.Producer
 
 // InitKafkaProducer 初始化 Kafka 生产者
@@ -20,8 +26,15 @@ func InitKafkaProducer(addr string) error {
 		return errors.New("kafka addr is empty")
 	}
 
+	config := &kafka.ConfigMap{
+		"bootstrap.servers":        addr,
+		"go.produce.channel.size":  produceChannelSize,
+		"message.send.max.retries": messageSendMaxRetries,
+		"compression.codec":        compressionCodec,
+	}
+
 	var err error
-	P, err = kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": addr})
+	P, err = kafka.NewProducer(config)
 	if err != nil {
 		return err
 	}
@@ -30,16 +43,28 @@ func InitKafkaProducer(addr string) error {
 	return nil
 }
 
-func produceToKafka(topic string, key string, value []byte) {
+func produceToKafka(topic string, key string, value []byte) error {
 	msg := &kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Key:            []byte(key), // 使用时间窗口或其他唯一标识作为 Key
 		Value:          value,       // 存储解析后的数据
 	}
 
-	if err := P.Produce(msg, nil); err != nil {
-		slog.Info("Failed to send message: %s", err)
+	deliveryChan := make(chan kafka.Event)
+	defer close(deliveryChan)
+
+	if err := P.Produce(msg, deliveryChan); err != nil {
+		return err
 	}
+
+	e := <-deliveryChan
+	m := e.(*kafka.Message)
+
+	if m.TopicPartition.Error != nil {
+		return m.TopicPartition.Error
+	}
+
+	return nil
 }
 
 //export GetDataCallback
@@ -84,7 +109,9 @@ func GetDataCallback(data *C.char, length C.int, interfaceName *C.char, windowKe
 	}
 
 	// 发送到Kafka
-	produceToKafka(C.GoString(interfaceName)+"_parsed_pkts", windowKeyStr, jsonData)
+	if err := produceToKafka(C.GoString(interfaceName)+"_parsed_pkts", windowKeyStr, jsonData); err != nil {
+		slog.Warn("Error: produceToKafka", "error", err)
+	}
 }
 
 func StartParsePacket(interfaceName, kafkaAddr, groupID string) (err error) {

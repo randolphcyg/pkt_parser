@@ -15,7 +15,20 @@ import (
 
 var ifName = flag.String("i", "ens33", "interface name")
 var groupID = flag.String("gid", "packet_parser", "group id")
-var kafkaAddr = flag.String("kafka", "192.168.3.93:9092", "kafka address")
+var kafkaAddr = flag.String("kafka", "10.10.10.187:9092", "kafka address")
+
+// waitForShutdown 等待退出信号
+func waitForShutdown(ctx context.Context) {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case <-sigChan:
+		slog.Info("Received shutdown signal, shutting down...")
+	case <-ctx.Done():
+		slog.Info("Context canceled, shutting down...")
+	}
+}
 
 func main() {
 	flag.Parse()
@@ -30,25 +43,16 @@ func main() {
 		return
 	}
 
+	// 确保在程序退出时关闭 Kafka 生产者
+	defer pkt_parser.P.Close()
+
 	err := pkt_parser.StartParsePacket(*ifName, *kafkaAddr, *groupID)
 	if err != nil {
 		slog.Error("Failed to start packet parser: %v", err)
 	}
 
 	// 等待退出信号
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	// 阻塞，直到接收到退出信号
-	select {
-	case <-sigChan:
-		slog.Info("Received shutdown signal, shutting down...")
-	case <-ctx.Done():
-		slog.Info("Context canceled, shutting down...")
-	}
-
-	// 关闭 Kafka 生产者
-	pkt_parser.P.Close()
+	waitForShutdown(ctx)
 
 	slog.Info("Packet parser stopped, exiting...")
 }
