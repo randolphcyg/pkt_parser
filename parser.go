@@ -5,70 +5,85 @@ package pkt_parser
 */
 import "C"
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"log/slog"
+	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/pkg/errors"
+	"github.com/segmentio/kafka-go"
 )
 
-const (
-	produceChannelSize    = 1000
-	messageSendMaxRetries = 3
-	compressionCodec      = "snappy"
+var (
+	writer    *kafka.Writer
+	kafkaChan chan kafka.Message
 )
-
-var P *kafka.Producer
 
 // InitKafkaProducer 初始化 Kafka 生产者
-func InitKafkaProducer(addr string) error {
-	if addr == "" {
-		return errors.New("kafka addr is empty")
+func InitKafkaProducer(broker, topic string, kafkaBatchSize, bufferSize int) error {
+	if broker == "" {
+		return errors.New("kafka broker address is empty")
 	}
 
-	config := &kafka.ConfigMap{
-		"bootstrap.servers":        addr,
-		"go.produce.channel.size":  produceChannelSize,
-		"message.send.max.retries": messageSendMaxRetries,
-		"compression.codec":        compressionCodec,
+	writer = &kafka.Writer{
+		Addr:         kafka.TCP(broker),
+		Balancer:     &kafka.LeastBytes{}, // 使用 LeastBytes 负载均衡策略
+		Topic:        topic,
+		Compression:  kafka.Snappy,   // 设置 Snappy 压缩
+		BatchSize:    kafkaBatchSize, // 批量发送的消息数
+		BatchTimeout: 100 * time.Millisecond,
+		Async:        false, // 是否异步发送
 	}
 
-	var err error
-	P, err = kafka.NewProducer(config)
-	if err != nil {
-		return err
-	}
-
-	slog.Info("Kafka producer init successfully")
+	kafkaChan = make(chan kafka.Message, bufferSize) // 缓冲队列，减少阻塞
+	go kafkaWorker()                                 // 启动 Kafka 生产者
+	log.Println("Kafka producer initialized successfully")
 	return nil
 }
 
-func produceToKafka(topic string, key string, value []byte) error {
-	msg := &kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Key:            []byte(key), // 使用时间窗口或其他唯一标识作为 Key
-		Value:          value,       // 存储解析后的数据
+// kafkaWorker 从缓冲队列中读取消息并发送到 Kafka
+func kafkaWorker() {
+	for msg := range kafkaChan {
+		if err := writer.WriteMessages(context.Background(), msg); err != nil {
+			slog.Error("Failed to send message to Kafka", "err", err)
+		}
+	}
+}
+
+// sendToKafka 生产者 将dpdk抓到的包解析后存储到kafka
+func sendToKafka(key string, value []byte) error {
+	if writer == nil {
+		return errors.New("kafka producer is not initialized")
 	}
 
-	deliveryChan := make(chan kafka.Event)
-	defer close(deliveryChan)
-
-	if err := P.Produce(msg, deliveryChan); err != nil {
-		return err
+	msg := kafka.Message{
+		Key:   []byte(key),
+		Value: value,
 	}
 
-	e := <-deliveryChan
-	m := e.(*kafka.Message)
-
-	if m.TopicPartition.Error != nil {
-		return m.TopicPartition.Error
+	select {
+	case kafkaChan <- msg: // 将消息放入缓冲队列
+	default:
+		slog.Warn("Kafka buffer is full, dropping packet")
 	}
 
 	return nil
+}
+
+// CloseKafkaProducer 关闭 Kafka 生产者
+func CloseKafkaProducer() {
+	close(kafkaChan) // 关闭通道
+	if writer != nil {
+		if err := writer.Close(); err != nil {
+			slog.Error("Failed to close Kafka writer", "err", err)
+		}
+	}
+	slog.Info("Kafka producer closed")
 }
 
 //export GetDataCallback
-func GetDataCallback(data *C.char, length C.int, interfaceName *C.char, windowKey *C.char) {
+func GetDataCallback(data *C.char, length C.int, windowKey *C.char) {
 	goPacket := ""
 	if data != nil {
 		goPacket = C.GoStringN(data, length)
@@ -109,21 +124,21 @@ func GetDataCallback(data *C.char, length C.int, interfaceName *C.char, windowKe
 	}
 
 	// 发送到Kafka
-	if err := produceToKafka(C.GoString(interfaceName)+"_parsed_pkts", windowKeyStr, jsonData); err != nil {
-		slog.Warn("Error: produceToKafka", "error", err)
+	if err = sendToKafka(windowKeyStr, jsonData); err != nil {
+		slog.Warn("Error: sendToKafka", "error", err)
 	}
 }
 
-func StartParsePacket(interfaceName, kafkaAddr, groupID string) (err error) {
+func StartParsePacket(ifName, kafkaAddr, groupID string) (err error) {
 	// 回调函数
 	C.setDataCallback((C.DataCallback)(C.GetDataCallback))
 
-	if interfaceName == "" {
+	if ifName == "" {
 		err = errors.Wrap(err, "device name is blank")
 		return
 	}
 
-	errMsg := C.parse_packet(C.CString(interfaceName), C.CString(kafkaAddr), C.CString(groupID))
+	errMsg := C.parse_packet(C.CString(ifName), C.CString(kafkaAddr), C.CString(groupID))
 	if C.strlen(errMsg) != 0 {
 		err = errors.Errorf("fail to capture packet live:%v", C.GoString(errMsg))
 		return

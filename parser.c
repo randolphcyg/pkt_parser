@@ -313,7 +313,7 @@ static bool send_data_to_wrap(struct device_map *device,
 
   if (json_str && dataCallback != NULL) {
     int len = strlen(json_str);
-    dataCallback(json_str, len, device->device_name, window_key);
+    dataCallback(json_str, len, window_key);
     success = true;
   }
 

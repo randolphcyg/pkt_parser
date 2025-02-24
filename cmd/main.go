@@ -13,9 +13,13 @@ import (
 	"pkt_parser"
 )
 
+const TopicSuffix = "_parsed_pkts"
+
 var ifName = flag.String("i", "ens33", "interface name")
 var groupID = flag.String("gid", "packet_parser", "group id")
 var kafkaAddr = flag.String("kafka", "10.10.10.187:9092", "kafka address")
+var kafkaBatchSize = flag.Int("batchSize", 100, "kafka 批量发送大小")
+var bufferSize = flag.Int("bufferSize", 1000, "缓冲队列大小")
 
 // waitForShutdown 等待退出信号
 func waitForShutdown(ctx context.Context) {
@@ -38,14 +42,16 @@ func main() {
 	defer cancel()
 
 	// 设置 Kafka 地址并初始化 Kafka 生产者
-	if err := pkt_parser.InitKafkaProducer(*kafkaAddr); err != nil {
+	topic := *ifName + TopicSuffix
+	if err := pkt_parser.InitKafkaProducer(*kafkaAddr, topic, *kafkaBatchSize, *bufferSize); err != nil {
 		slog.Error("Failed to initialize Kafka producer: %v", err)
 		return
 	}
 
-	// 确保在程序退出时关闭 Kafka 生产者
-	defer pkt_parser.P.Close()
+	// 关闭 Kafka 生产者
+	defer pkt_parser.CloseKafkaProducer()
 
+	// 启动包解析服务
 	err := pkt_parser.StartParsePacket(*ifName, *kafkaAddr, *groupID)
 	if err != nil {
 		slog.Error("Failed to start packet parser: %v", err)
