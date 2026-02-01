@@ -1,0 +1,13 @@
+version: '3'
+services:
+  pkt_parser:
+    image: pkt_parser:latest
+    network_mode: "host"
+    restart: always
+    command:
+      -"-i", "ens33"
+      -"-kafka", "192.168.12.224:9092"
+      -"-gid", "parser_cluster_group" # 所有实例使用相同 Group ID 以实现负载均衡
+    deploy:
+      mode: replicated
+      replicas: 4 # 开启 4 个并发解析实例
