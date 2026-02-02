@@ -68,31 +68,29 @@ RUN wget https://github.com/confluentinc/librdkafka/archive/refs/tags/v${RDKAFKA
     make -j$(nproc) && \
     make install
 
-
-WORKDIR /opt/third_party
 WORKDIR /opt/third_party
 RUN wget https://raw.githubusercontent.com/DaveGamble/cJSON/v${CJSON_VER}/cJSON.c && \
     wget https://raw.githubusercontent.com/DaveGamble/cJSON/v${CJSON_VER}/cJSON.h && \
     wget https://raw.githubusercontent.com/troydhanson/uthash/v${CHASH_VER}/src/uthash.h
 
-RUN mkdir -p /gowireshark/libs /gowireshark/include/wireshark /gowireshark/include/third_party
+RUN mkdir -p /app/libs /app/include/wireshark /app/include/third_party
 
-RUN cp -d /opt/wireshark/build/run/lib*.so* /gowireshark/libs/ && \
-    cp /opt/libpcap-${PCAP_VER}/libpcap.so.1 /gowireshark/libs/ && \
-    ln -sf /gowireshark/libs/libpcap.so.1 /gowireshark/libs/libpcap.so && \
-    cp -d /usr/local/lib/librdkafka*.so* /gowireshark/libs/
+RUN cp -d /opt/wireshark/build/run/lib*.so* /app/libs/ && \
+    cp /opt/libpcap-${PCAP_VER}/libpcap.so.1 /app/libs/ && \
+    ln -sf /app/libs/libpcap.so.1 /app/libs/libpcap.so && \
+    cp -d /usr/local/lib/librdkafka*.so* /app/libs/
 
-RUN cp /opt/wireshark/*.h /gowireshark/include/wireshark/ && \
-    cp /opt/wireshark/build/*.h /gowireshark/include/wireshark/ && \
-    cp -r /opt/wireshark/include/* /gowireshark/include/wireshark/ && \
-    cp -r /opt/wireshark/epan /gowireshark/include/wireshark/ && \
-    cp -r /opt/wireshark/wiretap /gowireshark/include/wireshark/ && \
-    cp -r /opt/wireshark/wsutil /gowireshark/include/wireshark/
+RUN cp /opt/wireshark/*.h /app/include/wireshark/ && \
+    cp /opt/wireshark/build/*.h /app/include/wireshark/ && \
+    cp -r /opt/wireshark/include/* /app/include/wireshark/ && \
+    cp -r /opt/wireshark/epan /app/include/wireshark/ && \
+    cp -r /opt/wireshark/wiretap /app/include/wireshark/ && \
+    cp -r /opt/wireshark/wsutil /app/include/wireshark/
 
-RUN cp /opt/libpcap-${PCAP_VER}/*.h /gowireshark/include/ && \
-    cp -r /usr/local/include/librdkafka /gowireshark/include/
+RUN cp /opt/libpcap-${PCAP_VER}/*.h /app/include/ && \
+    cp -r /usr/local/include/librdkafka /app/include/
 
-RUN cp /opt/third_party/* /gowireshark/include/third_party/
+RUN cp /opt/third_party/* /app/include/third_party/
 
 RUN rm -rf /opt/*.tar.* /var/tmp/*
 
@@ -120,11 +118,11 @@ RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.aliyun.com@g' /etc/apt/sources.li
 
 ENV CGO_ENABLED=1 \
     GOPROXY=https://goproxy.cn,direct \
-    CGO_CFLAGS="-I/gowireshark/include -I/gowireshark/include/wireshark -I/gowireshark/include/third_party -I/gowireshark/include/wireshark/epan -I/gowireshark/include/wireshark/wiretap -I/gowireshark/include/wireshark/wsutil -I/gowireshark/include/librdkafka" \
-    CGO_LDFLAGS="-L/gowireshark/libs -Wl,-rpath,/app/libs -lwiretap -lwsutil -lwireshark -lpcap -lrdkafka -lxml2 -lcares -lcurl -lglib-2.0 -lresolv -lpthread"
+    CGO_CFLAGS="-I/app/include -I/app/include/wireshark -I/app/include/third_party -I/app/include/wireshark/epan -I/app/include/wireshark/wiretap -I/app/include/wireshark/wsutil -I/app/include/librdkafka" \
+    CGO_LDFLAGS="-L/app/libs -Wl,-rpath,/app/libs -lwiretap -lwsutil -lwireshark -lpcap -lrdkafka -lxml2 -lcares -lcurl -lglib-2.0 -lresolv -lpthread"
 
-COPY --from=dll-builder /gowireshark/libs/ /gowireshark/libs/
-COPY --from=dll-builder /gowireshark/include/ /gowireshark/include/
+COPY --from=dll-builder /app/libs/ /app/libs/
+COPY --from=dll-builder /app/include/ /app/include/
 
 WORKDIR /app
 
@@ -138,9 +136,7 @@ RUN go build -trimpath -ldflags="-s -w" -o /app/pkt_parser ./cmd/main.go
 # Stage 3: Runtime
 # =============================================================================
 FROM ubuntu:24.04 AS runtime
-
-ENV TZ=Asia/Shanghai \
-    DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai DEBIAN_FRONTEND=noninteractive
 
 RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.aliyun.com@g' /etc/apt/sources.list.d/ubuntu.sources && \
     sed -i 's@//.*security.ubuntu.com@//mirrors.aliyun.com@g' /etc/apt/sources.list.d/ubuntu.sources && \
@@ -154,9 +150,8 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-
 COPY --from=go-builder /app/pkt_parser /app/pkt_parser
-COPY --from=dll-builder /gowireshark/libs/ /app/libs/
+COPY --from=dll-builder /app/libs/ /app/libs/
 
 ENV LD_LIBRARY_PATH=/app/libs
 WORKDIR /app
