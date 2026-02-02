@@ -3,7 +3,6 @@ package parser
 /*
 #cgo pkg-config: glib-2.0
 #include "lib.h"
-#include "parser.h"
 */
 import "C"
 import (

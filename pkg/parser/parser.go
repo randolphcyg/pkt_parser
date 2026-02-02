@@ -32,8 +32,8 @@ var (
 	StatsParseError uint64 // 解析错误数
 )
 
-// ParserStats 统计快照
-type ParserStats struct {
+// Stats 统计快照
+type Stats struct {
 	RxPackets   uint64
 	RxBytes     uint64
 	TxPackets   uint64
@@ -42,8 +42,8 @@ type ParserStats struct {
 	QueueLen    int
 }
 
-func GetStats() ParserStats {
-	return ParserStats{
+func GetStats() Stats {
+	return Stats{
 		RxPackets:   atomic.LoadUint64(&StatsRxPackets),
 		RxBytes:     atomic.LoadUint64(&StatsRxBytes),
 		TxPackets:   atomic.LoadUint64(&StatsTxPackets),

@@ -10,9 +10,10 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"pkt_parser/pkg/parser"
 	"syscall"
 	"time"
+
+	"pkt_parser/pkg/parser"
 )
 
 var deviceID = flag.String("deviceID", "eth0", "逻辑设备名")
@@ -78,7 +79,7 @@ func monitorMetrics(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	var lastStats parser.ParserStats
+	var lastStats parser.Stats
 	lastTime := time.Now()
 
 	slog.Info("Metrics monitor started")
