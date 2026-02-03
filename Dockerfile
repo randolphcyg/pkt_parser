@@ -68,12 +68,12 @@ RUN wget https://github.com/confluentinc/librdkafka/archive/refs/tags/v${RDKAFKA
     make -j$(nproc) && \
     make install
 
-WORKDIR /opt/third_party
+WORKDIR /app/pkg/parser
 RUN wget https://raw.githubusercontent.com/DaveGamble/cJSON/v${CJSON_VER}/cJSON.c && \
     wget https://raw.githubusercontent.com/DaveGamble/cJSON/v${CJSON_VER}/cJSON.h && \
     wget https://raw.githubusercontent.com/troydhanson/uthash/v${CHASH_VER}/src/uthash.h
 
-RUN mkdir -p /app/libs /app/include/wireshark /app/include/third_party
+RUN mkdir -p /app/libs /app/include/wireshark
 
 RUN cp -d /opt/wireshark/build/run/lib*.so* /app/libs/ && \
     cp /opt/libpcap-${PCAP_VER}/libpcap.so.1 /app/libs/ && \
@@ -90,21 +90,18 @@ RUN cp /opt/wireshark/*.h /app/include/wireshark/ && \
 RUN cp /opt/libpcap-${PCAP_VER}/*.h /app/include/ && \
     cp -r /usr/local/include/librdkafka /app/include/
 
-RUN cp /opt/third_party/* /app/include/third_party/
-
 RUN rm -rf /opt/*.tar.* /var/tmp/*
 
 # =============================================================================
 # Stage 2: Go Builder
 # =============================================================================
 FROM ubuntu:24.04 AS go-builder
+ARG GO_VER
 
 RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.aliyun.com@g' /etc/apt/sources.list.d/ubuntu.sources && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-    golang-go \
-    build-essential \
-    pkg-config \
+    wget ca-certificates build-essential pkg-config \
     libglib2.0-dev \
     libpcap-dev \
     libssl-dev \
@@ -112,22 +109,26 @@ RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.aliyun.com@g' /etc/apt/sources.li
     libsasl2-dev \
     libxml2-dev \
     libc-ares-dev \
-    libcurl4-openssl-dev \
-    ca-certificates && \
+    libcurl4-openssl-dev && \
     rm -rf /var/lib/apt/lists/*
 
-ENV CGO_ENABLED=1 \
+RUN wget https://go.dev/dl/go${GO_VER}.linux-amd64.tar.gz --no-check-certificate && \
+    tar -C /usr/local -xzf go${GO_VER}.linux-amd64.tar.gz && \
+    rm go${GO_VER}.linux-amd64.tar.gz
+
+ENV PATH="/usr/local/go/bin:${PATH}" \
+    CGO_ENABLED=1 \
     GOPROXY=https://goproxy.cn,direct \
-    CGO_CFLAGS="-I/app/include -I/app/include/wireshark -I/app/include/third_party -I/app/include/wireshark/epan -I/app/include/wireshark/wiretap -I/app/include/wireshark/wsutil -I/app/include/librdkafka" \
+    CGO_CFLAGS="-I/app/include -I/app/include/wireshark -I/app/include/wireshark/epan -I/app/include/wireshark/wiretap -I/app/include/wireshark/wsutil -I/app/include/librdkafka" \
     CGO_LDFLAGS="-L/app/libs -Wl,-rpath,/app/libs -lwiretap -lwsutil -lwireshark -lpcap -lrdkafka -lxml2 -lcares -lcurl -lglib-2.0 -lresolv -lpthread"
 
 COPY --from=dll-builder /app/libs/ /app/libs/
 COPY --from=dll-builder /app/include/ /app/include/
 
 WORKDIR /app
-
 COPY go.mod go.sum ./
 RUN go mod download
+COPY --from=dll-builder /app/pkg/parser/ ./pkg/parser/
 COPY . .
 
 RUN go build -trimpath -ldflags="-s -w" -o /app/pkt_parser ./cmd/main.go

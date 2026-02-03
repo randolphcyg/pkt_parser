@@ -38,7 +38,7 @@ docker run -d \
     -deviceID "win_dev_01" \
     -sourceTopic "eth0_capture" \
     -sinkTopic "parsed_data" \
-    -kafka "192.168.12.224:9092" \
+    -kafka "192.168.11.82:9092" \
     -gid "packet_parser_group_01" \
     -batchSize 200 \
     -bufferSize 2000
